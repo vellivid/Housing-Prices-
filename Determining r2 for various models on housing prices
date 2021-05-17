@@ -1,0 +1,58 @@
+houses=read.csv("houses (1).csv",stringsAsFactors = TRUE)
+library(caret)
+set.seed(1031)
+split=createDataPartition(y=houses$price,p=0.7,list=F,groups=100)
+train=houses[split,]
+test=houses[-split,]
+avgprice=mean(train$price)
+avgprice
+model=lm(price~.,train)
+
+summary(model)
+ggcorrplot(cor(train[,c(3:7, 10:13,16)]),type = 'lower',show.diag = F,colors = c('red','white','darkgreen'))
+y=train$sqft_above+train$sqft_basement
+y
+cor(train$sqft_living, y)
+model1=lm(price~bedrooms+bathrooms+sqft_living+sqft_lot+floors+waterfront+ view+condition+grade+age, data=train)
+library(car)
+vif(model1)
+library(leaps)
+subsets=regsubsets(price~bedrooms+bathrooms+sqft_living+sqft_lot+ floors+ waterfront+ view+condition+grade+age,data=train,nvmax=6)
+summary(subsets)
+which.min(summary(subsets)$cp)
+summary(subsets)$cp
+summary(subsets)$rsq
+
+#Feature selection using forward and backward stepwise 
+fullmod=lm(price~bedrooms+bathrooms+sqft_living+sqft_lot+ floors+ waterfront+ view+condition+grade+age,data=train)
+emptymod=lm(price~1,data=train)
+startmod=lm(price~1,data=train)
+fowardstepwise=step(startmod,scope=list(upper=fullmod,lower=emptymod),direction='forward')
+backwardstepwise=step(fullmod,scope=list(upper=fullmod,lower=emptymod),direction='backward')
+
+#lasso model
+install.packages("glmnet")
+library(glmnet)
+set.seed(1031)
+x=model.matrix(price~bedrooms+bathrooms+sqft_living+sqft_lot+ floors+waterfront+ view+condition+grade+age,data=train)
+y=train$price
+set.seed(1031)
+cv.lasso=cv.glmnet(x,y,alpha=1)
+plot(cv.lasso)
+coef(cv.lasso)
+modellasso=lm(price~bathrooms+sqft_living+waterfront+view+grade+age, data=train)
+summary(modellasso)
+pred=predict(modellasso)
+sse=sum((pred-train$price)^2)
+sst= sum((train$price-mean(train$price))^2)
+r2=1-sse/sst
+r2
+
+#PCA
+trainmodel=lm(price~.,trainComponents)
+summary(trainmodel)
+pred=predict(trainmodel,newdata = testComponents)
+sse = sum((pred-testComponents$price)^2)
+sst = sum((mean(trainComponents$price) - testComponents$price)^2)
+r2_test = 1 - sse/sst
+r2_test
